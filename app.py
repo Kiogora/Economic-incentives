@@ -3,7 +3,7 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from model import TECHS,TAX_NAMES,COMPANY_NAMES,INDUSTRY_NAMES,Settings,defaults,simulate
+from model import TECHS,TAX_NAMES,COMPANY_NAMES,INDUSTRY_NAMES,Settings,defaults,simulate,calculate_company
 
 st.set_page_config(page_title='Clean Cooking Tax Incentives',page_icon='🔥',layout='wide',initial_sidebar_state='expanded')
 st.markdown('''<style>.block-container{padding-top:1rem;max-width:1550px}
@@ -14,7 +14,7 @@ st.markdown('''<style>.block-container{padding-top:1rem;max-width:1550px}
 if 'tables' not in st.session_state:st.session_state.tables=defaults()
 if 'reset_no' not in st.session_state:st.session_state.reset_no=0
 st.title('Clean Cooking Tax Incentives Simulator')
-st.caption('Uganda · EED Advisory · Explore how taxes, business costs and stove sales affect PAYE and CIT')
+st.caption('Uganda · EED Advisory · Change driving inputs to see how stove sales, employment, PAYE and CIT affect government revenue')
 
 with st.sidebar:
     st.header('Main assumptions')
@@ -63,6 +63,8 @@ This simplified app keeps the same five clean cooking technologies as columns: *
 
 For a transparent view of incentive costs, the charts show **CIT + PAYE minus illustrative tax relief**. This is a fiscal contribution indicator, **not a forecast of additional tax revenue compared with a no-incentive economy**. PAYE and CIT receipts are also shown separately.''')
 
+st.info('**Demonstration recovery scenario:** Mid-stage defaults have higher annual stove sales and more workers, while the profit margin remains **40%**. Mid-stage VAT is set to **9%** (versus **0%** early and **18%** baseline) to illustrate partial withdrawal of incentives. These are demonstration assumptions, not measured impacts or prescribed tax rates. All remain editable.')
+
 st.header('1. Number of firms and years')
 st.caption('Each technology can have its own number of firms and duration of each stage.')
 input_table('industry',INDUSTRY_NAMES)
@@ -73,9 +75,29 @@ for tab,key in zip(st.tabs(['Baseline','Early stage','Mid-stage']),['tax_baselin
     with tab:input_table(key,TAX_NAMES)
 
 st.header('3. Company dynamics')
-st.caption('Enter imported stove or parts cost, company expenses, annual stove sales, workers and profit margin.')
-for tab,key in zip(st.tabs(['Early stage','Mid-stage']),['company_early','company_mid']):
-    with tab:input_table(key,COMPANY_NAMES)
+st.caption('DRIVING variables: editable sliders. DRIVEN variables: calculated automatically and read-only.')
+for tab,key,tax_key in zip(st.tabs(['Early stage','Mid-stage']),['company_early','company_mid'],['tax_early','tax_mid']):
+    with tab:
+        st.markdown('**Driving variables — change these values**')
+        input_table(key,COMPANY_NAMES)
+        st.markdown('**Driven variables — calculated automatically (cannot be edited)**')
+        import pandas as pd
+        output_rows = {
+            'Selling price per stove (UGX)': 'Selling price per stove (UGX)',
+            'Total annual wages (UGX/firm)': 'Annual wages (UGX)',
+            'Annual sales revenue (UGX/firm)': 'Annual sales revenue (UGX)',
+            'Profit before CIT (UGX/firm)': 'Profit before CIT (UGX)',
+            'PAYE (UGX/firm)': 'PAYE (UGX)',
+            'CIT (UGX/firm)': 'CIT (UGX)',
+        }
+        techs_to_show = [technology] if phone else list(TECHS)
+        out = {}
+        for tech in techs_to_show:
+            vals = calculate_company(st.session_state.tables[key][tech], st.session_state.tables[tax_key][tech],
+                                     st.session_state.tables['tax_baseline'][tech], 1, settings)
+            out[tech] = {label: vals[source] for label,source in output_rows.items()}
+        st.dataframe(pd.DataFrame(out).style.format('{:,.0f}'), use_container_width=True)
+        st.caption('Per firm, per year; results recalculate when the sliders above or the left-hand settings change. Selling price follows costs and the 40% target margin unless you edit that margin.')
 
 try: annual,details=simulate(st.session_state.tables,settings)
 except (ValueError,OverflowError) as e:st.error(str(e));st.stop()
@@ -92,9 +114,18 @@ c.metric('Tax relief',f'UGX {relief:,.0f}')
 fig=go.Figure()
 fig.add_trace(go.Scatter(x=[settings.start_year-1]+annual['Year'].tolist(),y=[0]+annual['Cumulative fiscal contribution (UGX)'].tolist(),mode='lines+markers',name='CIT + PAYE − tax relief',line=dict(width=3,color='#087a86')))
 fig.add_hline(y=0,line_dash='dash',line_color='#777')
+# Highlight the first recovery year after the cumulative balance has been negative.
+recovered = annual[(annual['Cumulative fiscal contribution (UGX)']>=0) &
+                   (annual['Cumulative fiscal contribution (UGX)'].shift(1)<0)]
+if not recovered.empty:
+    recovery_year = int(recovered.iloc[0]['Year'])
+    recovery_value = float(recovered.iloc[0]['Cumulative fiscal contribution (UGX)'])
+    fig.add_trace(go.Scatter(x=[recovery_year],y=[recovery_value],mode='markers+text',
+                             text=[f'Fiscal recovery: {recovery_year}'],textposition='top left',
+                             marker=dict(size=12,color='#14803c'),name='Recovery year'))
 fig.update_layout(height=450,margin=dict(l=10,r=10,t=30,b=10),xaxis_title='Year',yaxis_title='Cumulative fiscal contribution (UGX)')
 st.plotly_chart(fig,use_container_width=True)
-st.caption('The line is a simplified fiscal contribution measure, not a causal estimate of government revenue gained from incentives. A zero crossing does not prove the policy has paid for itself.')
+st.caption('Demonstration: the negative fiscal contribution can turn positive in the mid-stage as sales and employment grow and incentives are partly withdrawn. This is not proof that the incentives caused that growth or that the policy pays for itself.')
 
 st.subheader('Revenue by technology')
 view=st.radio('Choose result',['CIT + PAYE','CIT','PAYE','Tax relief','Cumulative fiscal contribution'],horizontal=True)

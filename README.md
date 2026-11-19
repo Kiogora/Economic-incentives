@@ -47,3 +47,25 @@ To deploy, push `app.py`, `model.py`, and `requirements.txt` to GitHub and selec
 - Apply proper import VAT / domestic VAT recoverability, input credits and refund treatment.
 - Incorporate CIT deductions, losses, depreciation, and withholding tax credit mechanics.
 - Confirm which imported parts costs replace finished stove costs in mid-stage.
+
+## Version 6 — demonstration of fiscal recovery
+
+The default **early stage** uses VAT relief (VAT 0% versus baseline 18%). The
+**mid-stage** demonstration increases annual stove sales and staff numbers while
+keeping the profit margin at **40%**. It also assumes a partial return of VAT to
+**9%** (18% no-incentive baseline). That mid-stage tax assumption is a scenario
+choice, not a representation of Uganda's current tax law or a value confirmed
+from the workbook. It is essential to the default crossing: with full VAT relief
+continuing through the mid-stage, merely increasing sales and workers did not
+reverse the cumulative shortfall under this simplified calculation.
+
+**Driving inputs** are editable in the company tables and left-hand sidebar.
+**Driven outputs** appear immediately below each stage's company table in a
+read-only results table, including annual wages, sale revenue, selling price,
+profit, PAYE and CIT per firm. The industry dashboard then multiplies each
+company's results by the number of firms and years active in that stage.
+
+With the included illustrative defaults (not empirical projections), the
+cumulative fiscal-contribution line crosses zero in 2035. This is not a
+causal estimate of fiscal gains attributable to incentives, and does not
+replace a properly specified baseline scenario or a reviewed tax model.

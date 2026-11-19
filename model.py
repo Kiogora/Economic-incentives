@@ -26,6 +26,10 @@ def defaults():
     early = {k:v.copy() for k,v in baseline.items()}
     for k in TAX_NAMES[1:]: early[k]=[0]*5
     mid = {k:v.copy() for k,v in early.items()}
+    # Demonstration policy: partial VAT restoration in the mid-stage (9% vs 18% baseline).
+    # Without a reduction in continuing VAT relief, expanding sales alone can deepen
+    # the fiscal shortfall. This is an editable scenario choice, not a workbook fact.
+    mid[TAX_NAMES[1]]=[9]*5
     early_co = {
         COMPANY_NAMES[0]:[20,40,45,2035,10],
         COMPANY_NAMES[1]:[2,3,4,75,1],
@@ -39,8 +43,10 @@ def defaults():
     mid_co = {k:v.copy() for k,v in early_co.items()}
     mid_co[COMPANY_NAMES[3]]=[200000,100000,500000,1000000,100000]
     mid_co[COMPANY_NAMES[4]]=[12000,30000,15000,800,40000]
-    mid_co[COMPANY_NAMES[5]]=[40,200,100,40,800]
-    mid_co[COMPANY_NAMES[6]]=[10,50,25,10,200]
+    # Demonstration recovery drivers: double mid-stage stove sales and workforce.
+    mid_co[COMPANY_NAMES[4]]=[v*2 for v in mid_co[COMPANY_NAMES[4]]]
+    mid_co[COMPANY_NAMES[5]]=[80,400,200,80,1600]
+    mid_co[COMPANY_NAMES[6]]=[20,100,50,20,400]
     industry={INDUSTRY_NAMES[0]:[10,10,3,5,20], INDUSTRY_NAMES[1]:[10,10,3,5,20],
               INDUSTRY_NAMES[2]:[7]*5,INDUSTRY_NAMES[3]:[3]*5}
     return dict(tax_baseline=frame(baseline),tax_early=frame(early),tax_mid=frame(mid),
@@ -100,7 +106,7 @@ def calculate_company(co, tax, baseline_tax, firms, settings):
     tax_relief+=max(0,sales*(float(baseline_tax[TAX_NAMES[1]])-float(tax[TAX_NAMES[1]]))/100)
     withholding=cif*float(tax[TAX_NAMES[3]])/100
     return {
-        'Annual stove sales':units,'Workers':workers,'Total company costs (UGX)':total_cost,
+        'Annual stove sales':units,'Annual wages (UGX)':wages,'Annual sales revenue (UGX)':sales,'Workers':workers,'Total company costs (UGX)':total_cost,
         'Selling price per stove (UGX)':sales/units if units else 0,
         'Profit before CIT (UGX)':profit,'CIT (UGX)':cit,'PAYE (UGX)':paye,
         'Import duty (UGX)':duty,'Infrastructure levy (UGX)':levy,'VAT (UGX)':vat,
